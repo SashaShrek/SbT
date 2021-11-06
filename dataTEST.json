@@ -1,0 +1,15 @@
+{
+    "id_channel": "test",
+    "price": "test",
+    "shopId": "test",
+    "backLink": "test",
+    "token": "test Tlgrm bot token",
+    "payToken": "test Token shop",
+    "database":{
+        "host": "localhost",
+        "port": 2021,
+        "user": "test user",
+        "password": "passwd",
+        "dbname": "name db"
+    }
+}
