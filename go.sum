@@ -1,3 +1,5 @@
+github.com/SashaShrek/db v1.0.1 h1:PL7G/lmbmTdqThw9e4+wH5dbZ+JBexwO3u7Vc4fotKI=
+github.com/SashaShrek/db v1.0.1/go.mod h1:XJBP+BI5elIpIIIGqhm6hds+KRxJrL62mR4nGsLCSYg=
 github.com/Syfaro/telegram-bot-api v4.6.4+incompatible h1:O30CgxZ/BuHpWfONoGirTIU7XUWhz6NPelk80FxipDI=
 github.com/Syfaro/telegram-bot-api v4.6.4+incompatible/go.mod h1:eC/lEGT3gOB9RowMYsLx0YH1U8a/dEjceHY3M//ej88=
 github.com/go-telegram-bot-api/telegram-bot-api v4.6.4+incompatible h1:2cauKuaELYAEARXRkq2LrJ0yDDv1rW7+wrTEdVL3uaU=

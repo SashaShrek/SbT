@@ -3,6 +3,7 @@ module sbt
 go 1.17
 
 require (
+	github.com/SashaShrek/db v1.0.1
 	github.com/Syfaro/telegram-bot-api v4.6.4+incompatible
 	github.com/lib/pq v1.10.3
 )

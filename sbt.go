@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"os"
 	"reflect"
-	"sbt/db"
 	"sbt/logger"
 	"sbt/random"
 	"sbt/request"
 	"strconv"
 	"time"
+
+	db "github.com/SashaShrek/db"
 
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
 )

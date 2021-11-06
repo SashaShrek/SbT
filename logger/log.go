@@ -2,7 +2,8 @@ package logger
 
 import (
 	"fmt"
-	"sbt/db"
+
+	db "github.com/SashaShrek/db"
 )
 
 func SetLog(user_id string, type_log string, service string, text string) {
