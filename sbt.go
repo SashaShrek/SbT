@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	db "github.com/SashaShrek/db"
 
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
@@ -64,7 +66,7 @@ type (
 )
 
 func readSecretData() {
-	file, err := os.Open("data.json")
+	file, err := os.Open("data.yaml")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -72,23 +74,23 @@ func readSecretData() {
 	defer file.Close()
 
 	type Database struct {
-		Host     string `json:"host"`
-		Port     int    `json:"port"`
-		User     string `json:"user"`
-		Password string `json:"password"`
-		DBname   string `json:"dbname"`
+		Host     string `yaml:"host"`
+		Port     int    `yaml:"port"`
+		User     string `yaml:"user"`
+		Password string `yaml:"password"`
+		DBname   string `yaml:"dbname"`
 	}
 	type Data struct {
-		Id_channel int      `json:"id_channel"`
-		Price      string   `json:"price"`
-		ShopdId    string   `json:"shopId"`
-		BackLink   string   `json:"backLink"`
-		Token      string   `json:"token"`
-		PayToken   string   `json:"payToken"`
-		Datab      Database `json:"database"`
+		Id_channel int      `yaml:"id_channel"`
+		Price      string   `yaml:"price"`
+		ShopdId    string   `yaml:"shopId"`
+		BackLink   string   `yaml:"backLink"`
+		Token      string   `yaml:"token"`
+		PayToken   string   `yaml:"payToken"`
+		Datab      Database `yaml:"database"`
 	}
 	var data Data
-	json.NewDecoder(file).Decode(&data)
+	_ = yaml.NewDecoder(file).Decode(&data)
 	ID_CHANNEL = &data.Id_channel
 	PRICE = &data.Price
 	SHOPID = &data.ShopdId
@@ -110,11 +112,38 @@ func main() {
 	}
 	logger.SetLog("-1", "info", "connectionBot", "OK")
 	bot = botTime
+	go newVersion()
 	go timer()
 	go update()
 
 	http.HandleFunc("/sbt_two_k_twenty_one", getResponse)
 	http.ListenAndServe(":20021", nil)
+}
+
+func newVersion() {
+	text := "Что нового в версии 1.0.1:\n" +
+		"1. Теперь кнопки внизу экрана не будут пропадать при обновлении кодовой базы бота\n" +
+		"2. Если кнопки всё-таки исчезли - вы можете отправить любой текст или символ боту и в ответ он отправит вам кнопки\n" +
+		"3. Технические моменты."
+	rows, dbase, _ := db.Select("select tlgrm_id from users")
+	defer rows.Close()
+	defer dbase.Close()
+	type TlgrmId struct {
+		tlgrm_id string
+	}
+	var tlgrmId TlgrmId
+	var tgId int64
+	for rows.Next() {
+		err := rows.Scan(&tlgrmId.tlgrm_id)
+		if err != nil {
+			continue
+		}
+		tgId, _ = strconv.ParseInt(tlgrmId.tlgrm_id, 10, 64)
+		message := tgbotapi.NewMessage(tgId, text)
+		message.ReplyMarkup = pay
+		bot.Send(message)
+	}
+	logger.SetLog("-1", "info", "updated", "Сообщение всем отправлено")
 }
 
 func kicker() {
@@ -454,6 +483,7 @@ func update() {
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, howPayment))
 			default:
 				message := tgbotapi.NewMessage(update.Message.Chat.ID, "Нет такой команды!")
+				message.ReplyMarkup = pay
 				bot.Send(message)
 			}
 		}
