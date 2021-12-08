@@ -121,10 +121,8 @@ func main() {
 }
 
 func newVersion() {
-	text := "Что нового в версии 1.0.1:\n" +
-		"1. Теперь кнопки внизу экрана не будут пропадать при обновлении кодовой базы бота\n" +
-		"2. Если кнопки всё-таки исчезли - вы можете отправить любой текст или символ боту и в ответ он отправит вам кнопки\n" +
-		"3. Технические моменты."
+	text := "Что нового в версии 1.0.2:\n" +
+		"- Изменён адрес почты от предыдущего поста о нововведениях: supp.sbt@gmail.com)."
 	rows, dbase, _ := db.Select("select tlgrm_id from users")
 	defer rows.Close()
 	defer dbase.Close()
@@ -185,7 +183,8 @@ func kicker() {
 				bot.Send(message)
 				continue
 			}
-			if dateNow.Sub(dates.notifier_date_pay).Hours() >= 0 {
+			result := dateNow.Sub(dates.notifier_date_pay).Hours()
+			if (result >= 0 && result < 24) || (result >= 0 && result >= 48) {
 				id, _ := strconv.ParseInt(dates.tlgrm_id, 10, 64)
 				message := tgbotapi.NewMessage(id, "Необходимо продлить подписку. В противном случае доступ к каналу STYLE by Tsymlyanskaya будет отозван!\nСделать это вы можете, нажав кнопку внизу экрана")
 				bot.Send(message)
@@ -323,7 +322,7 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 	if !isPay.is_pay {
 		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/createChatInviteLink?chat_id=%d&member_limit=1", *TOKEN, *ID_CHANNEL))
 		if err != nil {
-			msg := fmt.Sprintf("Произошла ошибка: %s. Обратитесь в тех. поддержку по адресу supp.sbt@gamil.com", err.Error())
+			msg := fmt.Sprintf("Произошла ошибка: %s. Обратитесь в тех. поддержку по адресу supp.sbt@gmail.com", err.Error())
 			message := tgbotapi.NewMessage(tlgrm_id, msg)
 			bot.Send(message)
 			logger.SetLog(fmt.Sprint(tlgrm_id), "error", "createLink", err.Error())
@@ -359,10 +358,10 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 	delta := datesP.n_date_p.Sub(date_pay)
 	if delta > 0 {
 		next_date_pay = datesP.n_date_p.AddDate(0, 1, 0)
-		notifier_date_pay = datesP.n_date_p.AddDate(0, 1, -7)
+		notifier_date_pay = datesP.n_date_p.AddDate(0, 1, -2)
 	} else {
 		next_date_pay = date_pay.AddDate(0, 1, 0)
-		notifier_date_pay = date_pay.AddDate(0, 1, -7)
+		notifier_date_pay = date_pay.AddDate(0, 1, -2)
 	}
 	var query string
 	if !isPay.is_pay {
