@@ -22,6 +22,7 @@ import (
 
 var (
 	ID_CHANNEL *int
+	ID_CHAT    *int
 	PRICE      *string
 	SHOPID     *string
 	BACK_LINK  *string
@@ -51,7 +52,8 @@ type (
 	}
 
 	IsPay struct {
-		is_pay bool
+		is_pay       bool
+		is_pay_first bool
 	}
 
 	DatesPay struct {
@@ -82,6 +84,7 @@ func readSecretData() {
 	}
 	type Data struct {
 		Id_channel int      `yaml:"id_channel"`
+		Id_chat    int      `yaml:"id_chat"`
 		Price      string   `yaml:"price"`
 		ShopdId    string   `yaml:"shopId"`
 		BackLink   string   `yaml:"backLink"`
@@ -92,6 +95,7 @@ func readSecretData() {
 	var data Data
 	_ = yaml.NewDecoder(file).Decode(&data)
 	ID_CHANNEL = &data.Id_channel
+	ID_CHAT = &data.Id_chat
 	PRICE = &data.Price
 	SHOPID = &data.ShopdId
 	BACK_LINK = &data.BackLink
@@ -113,6 +117,7 @@ func main() {
 	logger.SetLog("-1", "info", "connectionBot", "OK")
 	bot = botTime
 	go newVersion()
+	go approveInvite()
 	go timer()
 	go update()
 
@@ -120,9 +125,46 @@ func main() {
 	http.ListenAndServe(":20021", nil)
 }
 
+func approveInvite() {
+	for range time.Tick(15 * time.Minute) {
+		rows, datab, _ := db.Select("select tlgrm_id from users where invite = true")
+		type AppInv struct {
+			tlgrm_id string
+		}
+		var appInv AppInv
+		for rows.Next() {
+			err := rows.Scan(&appInv.tlgrm_id)
+			if err != nil {
+				continue
+			}
+			res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/approveChatJoinRequest?chat_id=%d&user_id=%s", *TOKEN, *ID_CHANNEL, appInv.tlgrm_id))
+			if err != nil {
+				logger.SetLog(appInv.tlgrm_id, "error", "approve", err.Error())
+			}
+			var dataRes map[string]interface{}
+			data, _ := ioutil.ReadAll(res.Body)
+			_ = json.Unmarshal(data, &dataRes)
+			result := dataRes["ok"]
+			if result != true {
+				res.Body.Close()
+				continue
+			}
+			_ = db.InsertOrUpdate(fmt.Sprintf("update users set invite = false where tlgrm_id = '%s'", appInv.tlgrm_id))
+			id, _ := strconv.ParseInt(appInv.tlgrm_id, 10, 64)
+			message := tgbotapi.NewMessage(id, "Доступ к каналу предоставлен: заявка одобрена")
+			bot.Send(message)
+			logger.SetLog(appInv.tlgrm_id, "info", "approve", "Заявка одобрена")
+			res.Body.Close()
+		}
+		rows.Close()
+		datab.Close()
+	}
+}
+
 func newVersion() {
-	text := "Что нового в версии 1.0.2:\n" +
-		"- Изменён адрес почты от предыдущего поста о нововведениях: supp.sbt@gmail.com)."
+	text := "Что нового в версии 1.2.0:\n" +
+		"- Полностью изменена процедура оплаты: теперь для вступления на канал требуется подать заявку на вступление\n" +
+		"- Исправлены некоторые ошибки, связанные с интеграцией c базой данных."
 	rows, dbase, _ := db.Select("select tlgrm_id from users")
 	defer rows.Close()
 	defer dbase.Close()
@@ -145,6 +187,7 @@ func newVersion() {
 }
 
 func kicker() {
+	var result float64
 	var dates Dates
 	var query string = "select next_date_pay, notifier_date_pay, is_pay, is_pay_first, tlgrm_id from users"
 	rows, datab, _ := db.Select(query)
@@ -172,9 +215,14 @@ func kicker() {
 					logger.SetLog(dates.tlgrm_id, "error", "banUser", err.Error())
 				}
 				res.Body.Close()
-				res, err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%s", *TOKEN, *ID_CHANNEL, dates.tlgrm_id))
+				res, err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/banChatMember?chat_id=%d&user_id=%s", *TOKEN, *ID_CHAT, dates.tlgrm_id))
 				if err != nil {
-					logger.SetLog(dates.tlgrm_id, "error", "unbanUser", err.Error())
+					logger.SetLog(dates.tlgrm_id, "error", "banUserFromChat", err.Error())
+				}
+				res.Body.Close()
+				res, err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%s", *TOKEN, *ID_CHAT, dates.tlgrm_id))
+				if err != nil {
+					logger.SetLog(dates.tlgrm_id, "error", "unbanUserFromChat", err.Error())
 				}
 				res.Body.Close()
 				logger.SetLog(dates.tlgrm_id, "info", "banUser", "Кикнут")
@@ -183,7 +231,7 @@ func kicker() {
 				bot.Send(message)
 				continue
 			}
-			result := dateNow.Sub(dates.notifier_date_pay).Hours()
+			result = dateNow.Sub(dates.notifier_date_pay).Hours()
 			if (result >= 0 && result < 24) || (result >= 0 && result >= 48) {
 				id, _ := strconv.ParseInt(dates.tlgrm_id, 10, 64)
 				message := tgbotapi.NewMessage(id, "Необходимо продлить подписку. В противном случае доступ к каналу STYLE by Tsymlyanskaya будет отозван!\nСделать это вы можете, нажав кнопку внизу экрана")
@@ -308,19 +356,19 @@ func paymentCancel(ownerCancel string, reason string, id int64) (string, string)
 	return responseUser, owner
 }
 func paymentDone(tlgrm_id int64, transaction string, msgId int) {
-	rows, datab, _ := db.Select(fmt.Sprintf("select is_pay from users where tlgrm_id = '%s'",
+	rows, datab, _ := db.Select(fmt.Sprintf("select is_pay, is_pay_first from users where tlgrm_id = '%s'",
 		fmt.Sprint(tlgrm_id)))
 	var isPay IsPay
 	for rows.Next() {
-		err := rows.Scan(&isPay.is_pay)
+		err := rows.Scan(&isPay.is_pay, &isPay.is_pay_first)
 		if err != nil {
 			continue
 		}
 	}
 	var msg string
 	var invite interface{}
-	if !isPay.is_pay {
-		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/createChatInviteLink?chat_id=%d&member_limit=1", *TOKEN, *ID_CHANNEL))
+	if !isPay.is_pay && !isPay.is_pay_first {
+		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/createChatInviteLink?chat_id=%d&creates_join_request=true", *TOKEN, *ID_CHANNEL))
 		if err != nil {
 			msg := fmt.Sprintf("Произошла ошибка: %s. Обратитесь в тех. поддержку по адресу supp.sbt@gmail.com", err.Error())
 			message := tgbotapi.NewMessage(tlgrm_id, msg)
@@ -332,10 +380,22 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 		_ = json.Unmarshal(data, &dataRes)
 		invite = dataRes["result"].(map[string]interface{})["invite_link"]
 		res.Body.Close()
-		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке, чтобы получить доступ к каналу: %s\n\nВопросы по работе бота: supp.sbt@gmail.com\n\nВаш Telegram ID: %s, его необходимо указывать при каждом обращении на указанную почту.",
+		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s\n\nВопросы по работе бота: supp.sbt@gmail.com\n\nВаш Telegram ID: %s, его необходимо указывать при каждом обращении на указанную почту.",
 			invite, fmt.Sprint(tlgrm_id))
 	} else {
-		msg = "Подписка продлена!\n\nВопросы по работе бота: supp.sbt@gmail.com"
+		rows, datab, _ = db.Select(fmt.Sprintf("select link from users where tlgrm_id = '%s'",
+			fmt.Sprint(tlgrm_id)))
+		type LinkUser struct {
+			link string
+		}
+		var linkU LinkUser
+		for rows.Next() {
+			err := rows.Scan(&linkU.link)
+			if err != nil {
+				continue
+			}
+		}
+		msg = fmt.Sprintf("Подписка продлена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s\n\nВопросы по работе бота: supp.sbt@gmail.com", linkU.link)
 	}
 	rows.Close()
 	datab.Close()
@@ -347,6 +407,7 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 	for rows.Next() {
 		err := rows.Scan(&datesP.date_p, &datesP.n_date_p, &datesP.not_date_p)
 		if err != nil {
+			fmt.Println(err.Error())
 			continue
 		}
 	}
@@ -364,20 +425,28 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 		notifier_date_pay = date_pay.AddDate(0, 1, -2)
 	}
 	var query string
-	if !isPay.is_pay {
-		query = fmt.Sprintf("update users set link = '%s', is_pay = true, is_pay_first = true, "+
+	if !isPay.is_pay && !isPay.is_pay_first {
+		query = fmt.Sprintf("update users set link = '%s', is_pay = true, is_pay_first = true, invite = true,"+
 			"date_pay = to_date('%s', 'YYYY-MM-DD'), "+
 			"next_date_pay = to_date('%s', 'YYYY-MM-DD'), "+
 			"notifier_date_pay = to_date('%s', 'YYYY-MM-DD') where tlgrm_id = '%s'",
 			invite, date_pay, next_date_pay, notifier_date_pay, fmt.Sprint(tlgrm_id))
 	} else {
-		query = fmt.Sprintf("update users set is_pay = true, is_pay_first = true, "+
+		query = fmt.Sprintf("update users set is_pay = true, is_pay_first = true, invite = true,"+
 			"date_pay = to_date('%s', 'YYYY-MM-DD'), "+
 			"next_date_pay = to_date('%s', 'YYYY-MM-DD'), "+
 			"notifier_date_pay = to_date('%s', 'YYYY-MM-DD') where tlgrm_id = '%s'",
 			date_pay, next_date_pay, notifier_date_pay, fmt.Sprint(tlgrm_id))
+		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%s", *TOKEN, *ID_CHANNEL, fmt.Sprint(tlgrm_id)))
+		if err != nil {
+			logger.SetLog(fmt.Sprint(tlgrm_id), "error", "unbanUser", err.Error())
+		}
+		res.Body.Close()
 	}
-	_ = db.InsertOrUpdate(query)
+	err := db.InsertOrUpdate(query)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	query = fmt.Sprintf("insert into transaction (row_id, provider_token_payment) values ((select row_id from users where tlgrm_id = '%s'), '%s')",
 		fmt.Sprint(tlgrm_id), transaction)
@@ -408,6 +477,9 @@ func update() {
 			continue
 		}
 		if reflect.TypeOf(update.Message.Text).Kind() == reflect.String && update.Message.Text != "" {
+			if int64(*ID_CHAT) == update.Message.Chat.ID {
+				continue
+			}
 			switch update.Message.Text {
 			case "/start":
 				msg := "♥️Этот канал, создан для того, чтобы делиться с вами всем, что встречается мне на разных" +
