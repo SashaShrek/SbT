@@ -382,7 +382,7 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 		res.Body.Close()
 		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s\n\nВопросы по работе бота: supp.sbt@gmail.com\n\nВаш Telegram ID: %s, его необходимо указывать при каждом обращении на указанную почту.",
 			invite, fmt.Sprint(tlgrm_id))
-	} else {
+	} else if !isPay.is_pay {
 		rows, datab, _ = db.Select(fmt.Sprintf("select link from users where tlgrm_id = '%s'",
 			fmt.Sprint(tlgrm_id)))
 		type LinkUser struct {
@@ -395,7 +395,9 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 				continue
 			}
 		}
-		msg = fmt.Sprintf("Подписка продлена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s\n\nВопросы по работе бота: supp.sbt@gmail.com", linkU.link)
+		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s\n\nВопросы по работе бота: supp.sbt@gmail.com", linkU.link)
+	} else if isPay.is_pay {
+		msg = "Подписка продлена!\n\nВопросы по работе бота: supp.sbt@gmail.com"
 	}
 	rows.Close()
 	datab.Close()
@@ -431,8 +433,8 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 			"next_date_pay = to_date('%s', 'YYYY-MM-DD'), "+
 			"notifier_date_pay = to_date('%s', 'YYYY-MM-DD') where tlgrm_id = '%s'",
 			invite, date_pay, next_date_pay, notifier_date_pay, fmt.Sprint(tlgrm_id))
-	} else {
-		query = fmt.Sprintf("update users set is_pay = true, is_pay_first = true, invite = true,"+
+	} else if !isPay.is_pay {
+		query = fmt.Sprintf("update users set is_pay = true, is_pay_first = true, invite = true"+
 			"date_pay = to_date('%s', 'YYYY-MM-DD'), "+
 			"next_date_pay = to_date('%s', 'YYYY-MM-DD'), "+
 			"notifier_date_pay = to_date('%s', 'YYYY-MM-DD') where tlgrm_id = '%s'",
@@ -442,6 +444,12 @@ func paymentDone(tlgrm_id int64, transaction string, msgId int) {
 			logger.SetLog(fmt.Sprint(tlgrm_id), "error", "unbanUser", err.Error())
 		}
 		res.Body.Close()
+	} else if isPay.is_pay {
+		query = fmt.Sprintf("update users set is_pay = true, is_pay_first = true,"+
+			"date_pay = to_date('%s', 'YYYY-MM-DD'), "+
+			"next_date_pay = to_date('%s', 'YYYY-MM-DD'), "+
+			"notifier_date_pay = to_date('%s', 'YYYY-MM-DD') where tlgrm_id = '%s'",
+			date_pay, next_date_pay, notifier_date_pay, fmt.Sprint(tlgrm_id))
 	}
 	err := db.InsertOrUpdate(query)
 	if err != nil {
