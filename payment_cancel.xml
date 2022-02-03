@@ -1,0 +1,87 @@
+<?xml  version="1.1"?>
+<type_pc>
+    <reasons>
+        <reason>
+            <name>3d_secure_failed</name>
+            <text>Не пройдена аутентификация по 3-D Secure.</text>
+        </reason>
+        <reason>
+            <name>call_issuer</name>
+            <text>Оплата данным платежным средством отклонена по неизвестным причинам. Пользователю следует обратиться в организацию, выпустившую платежное средство.</text>
+        </reason>
+        <reason>
+            <name>card_expired</name>
+            <text>Истек срок действия банковской карты.</text>
+        </reason>
+        <reason>
+            <name>country_forbidden</name>
+            <text>Нельзя заплатить банковской картой, выпущенной в этой стране.</text>
+        </reason>
+        <reason>
+            <name>expired_on_confirmation</name>
+            <text>Истек срок оплаты: пользователь не подтвердил платеж за время, отведенное на оплату выбранным способом. Если вы успешно оплатили, то проигнорируйте данное сообщение.</text>
+        </reason>
+        <reason>
+            <name>fraud_suspected</name>
+            <text>Платеж заблокирован из-за подозрения в мошенничестве.</text>
+        </reason>
+        <reason>
+            <name>general_decline</name>
+            <text>Причина не детализирована. Пользователю следует обратиться к инициатору отмены платежа за уточнением подробностей.</text>
+        </reason>
+        <reason>
+            <name>identification_required</name>
+            <text>Превышены ограничения на платежи для кошелька ЮMoney.</text>
+        </reason>
+        <reason>
+            <name>insufficient_funds</name>
+            <text>Не хватает денег для оплаты.</text>
+        </reason>
+        <reason>
+            <name>internal_timeout</name>
+            <text>Технические неполадки на стороне ЮKassa: не удалось обработать запрос в течение 30 секунд.</text>
+        </reason>
+        <reason>
+            <name>invalid_card_number</name>
+            <text>Неправильно указан номер карты.</text>
+        </reason>
+        <reason>
+            <name>invalid_csc</name>
+            <text>Неправильно указан код CVV2 (CVC2, CID).</text>
+        </reason>
+        <reason>
+            <name>issuer_unavailable</name>
+            <text>Организация, выпустившая платежное средство, недоступна.</text>
+        </reason>
+        <reason>
+            <name>payment_method_limit_exceeded</name>
+            <text>Исчерпан лимит платежей для данного платежного средства или вашего магазина.</text>
+        </reason>
+        <reason>
+            <name>payment_method_restricted</name>
+            <text>Запрещены операции данным платежным средством (например, карта заблокирована из-за утери, кошелек — из-за взлома мошенниками). Пользователю следует обратиться в организацию, выпустившую платежное средство.</text>
+        </reason>
+        <reason>
+            <name>permission_revoked</name>
+            <text>Нельзя провести безакцептное списание: пользователь отозвал разрешение на автоплатежи.</text>
+        </reason>
+        <reason>
+            <name>unsupported_mobile_operator</name>
+            <text>Нельзя заплатить с номера телефона этого мобильного оператора. Доступные операторы: Мегафон, Билайн, МТС, Теле2.</text>
+        </reason>
+    </reasons>
+    <owners>
+        <owner>
+            <name>merchant</name>
+            <text>продавцом товаров и услуг</text>
+        </owner>
+        <owner>
+            <name>yoo_money</name>
+            <text>ЮKassa</text>
+        </owner>
+        <owner>
+            <name>payment_network</name>
+            <text>«внешними» участниками платежного процесса — все остальные участники платежного процесса, кроме ЮKassa и продавца (например, эмитент, сторонний платежный сервис)</text>
+        </owner>
+    </owners>
+</type_pc>

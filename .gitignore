@@ -1,2 +1,5 @@
 move.sh
 data.yaml
+data.xml
+go.mod
+go.sum

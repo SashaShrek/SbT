@@ -1,0 +1,17 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<data>
+    <id_channel>TEST</id_channel>
+    <id_chat>TEST</id_chat>
+    <price>999.00</price>
+    <shopId>TEST</shopId>
+    <backLink>TEST</backLink>
+    <token>TEST</token>
+    <payToken>TEST</payToken>
+    <database>
+        <host>TEST</host>
+        <port>TEST</port>
+        <user>TEST</user>
+        <password>TEST</password>
+        <dbname>TEST</dbname>
+    </database>
+</data>
