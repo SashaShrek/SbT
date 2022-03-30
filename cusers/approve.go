@@ -13,7 +13,23 @@ import (
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
 )
 
-func (app DataAprrove) Appr(bot *tgbotapi.BotAPI, token *string, idChannel *int64) {
+func Appr(bot *tgbotapi.BotAPI, token *string, idChannel *int64) {
+	type appInv struct {
+		tlgrm_id string
+	}
+	type DataAprrove struct {
+		result  bool
+		desc    string
+		id      int64
+		aInv    appInv
+		err     error
+		data    []byte
+		res     *http.Response
+		message tgbotapi.MessageConfig
+	}
+
+	var app DataAprrove
+
 	for range time.Tick(15 * time.Minute) {
 		rows, datab, _ := db.Select("select tlgrm_id from users where invite = true")
 		for rows.Next() {
@@ -22,7 +38,7 @@ func (app DataAprrove) Appr(bot *tgbotapi.BotAPI, token *string, idChannel *int6
 				continue
 			}
 			app.id, _ = strconv.ParseInt(app.aInv.tlgrm_id, 10, 64)
-			app.res, app.err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/approveChatJoinRequest?chat_id=%d&user_id=%s", *token, *idChannel, app.aInv.tlgrm_id))
+			app.res, app.err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/approveChatJoinRequest?chat_id=%d&user_id=%d", *token, *idChannel, app.id))
 			if app.err != nil {
 				logger.SetLog(app.aInv.tlgrm_id, "error", "approve", app.err.Error())
 				continue
@@ -36,7 +52,15 @@ func (app DataAprrove) Appr(bot *tgbotapi.BotAPI, token *string, idChannel *int6
 				app.desc = dataRes["description"].(string)
 			}
 			if !app.result {
-				logger.SetLog(app.aInv.tlgrm_id, "warn", "approve", app.desc)
+				if app.desc == "Bad Request: USER_ALREADY_PARTICIPANT" {
+					app.err = db.InsertOrUpdate(fmt.Sprintf("update users set invite = false where tlgrm_id = '%s'", app.aInv.tlgrm_id))
+					if app.err != nil {
+						logger.SetLog(app.aInv.tlgrm_id, "error", "approve", app.err.Error())
+						app.res.Body.Close()
+					}
+				} else {
+					logger.SetLog(app.aInv.tlgrm_id, "warn", "approve", app.desc)
+				}
 				/*message := tgbotapi.NewMessage(id, "Возникла ошибка при одобрении вашей заявки. Вероятно, у вас ссылка старого типа. Напишите на почту supp.sbt@gmail.com с просьбой обновить ссылку.")
 				bot.Send(message)*/
 				/*app.err = db.InsertOrUpdate(fmt.Sprintf("update users set invite = false where tlgrm_id = '%s'", app.aInv.tlgrm_id))

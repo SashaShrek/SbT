@@ -20,8 +20,8 @@ func PaymentCancel(ownerCancel string, reason string, id int64) (string, string,
 
 	type TypePC struct {
 		XML  xml.Name `xml:"type_pc"`
-		Rsn  []Reason `xml:"reasons"`
-		Ownr []Owner  `xml:"owners"`
+		Rsn  []Reason `xml:"reasons>reason"`
+		Ownr []Owner  `xml:"owners>owner"`
 	}
 
 	sid := fmt.Sprint(id)

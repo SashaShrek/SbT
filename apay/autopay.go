@@ -6,7 +6,19 @@ import (
 	"github.com/SashaShrek/db"
 )
 
-func (d Data) GetAutoPay(id int) (bool, int) {
+func GetAutoPay(id int) (bool, int) {
+	type dataPay struct {
+		Autopay bool
+		MsgId   int
+	}
+
+	type Data struct {
+		dtPay       dataPay
+		requestData string
+	}
+
+	var d Data
+
 	d.requestData = fmt.Sprintf("select autopay, autopay_msg_id from users where tlgrm_id = '%s'",
 		fmt.Sprint(id))
 	rows, datab, _ := db.Select(d.requestData)

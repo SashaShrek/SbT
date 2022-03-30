@@ -110,12 +110,12 @@ func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, i
 			"next_date_pay = to_date('%s', 'YYYY-MM-DD'), "+
 			"notifier_date_pay = to_date('%s', 'YYYY-MM-DD') where tlgrm_id = '%s'",
 			date_pay, next_date_pay, notifier_date_pay, stg_id)
-		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%s", *token, *idChannel, stg_id))
+		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%d", *token, *idChannel, tlgrm_id))
 		if err != nil {
 			logger.SetLog(stg_id, "error", "unbanUser", err.Error())
 		}
 		res.Body.Close()
-		res, err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%s", *token, *idChat, stg_id))
+		res, err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%d", *token, *idChat, tlgrm_id))
 		if err != nil {
 			logger.SetLog(stg_id, "error", "unbanUser", err.Error())
 		}

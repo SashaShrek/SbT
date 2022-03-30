@@ -114,7 +114,7 @@ func main() {
 	logger.SetLog("-1", "info", "connectionBot", "OK")
 	bot = botTime
 	go getCountUsers()
-	go newVersion()
+	//go newVersion()
 	go approveInvite()
 	go timer()
 	go update()
@@ -139,8 +139,7 @@ func getCountUsers() {
 }
 
 func approveInvite() {
-	var appr cusers.DataAprrove
-	cusers.IApprove.Appr(appr, bot, TOKEN, ID_CHANNEL)
+	cusers.Appr(bot, TOKEN, ID_CHANNEL)
 }
 
 func newVersion() {
@@ -168,10 +167,9 @@ func newVersion() {
 }
 
 func timer() {
-	var dates cusers.DataKick
-	cusers.IDates.Keks(dates, bot, TOKEN, ID_CHANNEL, ID_CHAT)
+	cusers.Keks(bot, TOKEN, ID_CHANNEL, ID_CHAT)
 	for range time.Tick(24 * time.Hour) {
-		cusers.IDates.Keks(dates, bot, TOKEN, ID_CHANNEL, ID_CHAT)
+		cusers.Keks(bot, TOKEN, ID_CHANNEL, ID_CHAT)
 	}
 }
 
@@ -239,11 +237,10 @@ func update() {
 		if update.CallbackQuery != nil {
 			var result bool
 			var msgId int
-			var data apay.Data
 			var message tgbotapi.CallbackConfig
 			switch update.CallbackQuery.Data {
 			case "/подключить":
-				result, msgId = apay.IAPay.GetAutoPay(data, update.CallbackQuery.From.ID)
+				result, msgId = apay.GetAutoPay(update.CallbackQuery.From.ID)
 				if result {
 					message = tgbotapi.NewCallback(update.CallbackQuery.ID, "Автоплатёж уже подключен")
 				} else {
@@ -257,7 +254,7 @@ func update() {
 				bot.Send(tgbotapi.NewMessage(int64(update.CallbackQuery.From.ID),
 					"Чтобы автоплатёж начал работать, необходимо провести оплату банковской картой!"))
 			case "/отключить":
-				result, msgId = apay.IAPay.GetAutoPay(data, update.CallbackQuery.From.ID)
+				result, msgId = apay.GetAutoPay(update.CallbackQuery.From.ID)
 				if result {
 					result = false
 					_ = db.InsertOrUpdate(fmt.Sprintf("update users set autopay = %t where tlgrm_id = '%s'",

@@ -11,7 +11,27 @@ import (
 	tgbotapi "github.com/Syfaro/telegram-bot-api"
 )
 
-func (d DataKick) Keks(bot *tgbotapi.BotAPI, token *string, idChannel *int64, idChat *int64) {
+func Keks(bot *tgbotapi.BotAPI, token *string, idChannel *int64, idChat *int64) {
+	type dates struct {
+		next_date_pay     time.Time
+		notifier_date_pay time.Time
+		is_pay            bool
+		is_pay_first      bool
+		tlgrm_id          string
+	}
+	type DataKick struct {
+		dts     dates
+		result  float64
+		query   string
+		dateNow time.Time
+		message tgbotapi.MessageConfig
+		err     error
+		id      int64
+		res     *http.Response
+	}
+
+	var d DataKick
+
 	d.query = "select next_date_pay, notifier_date_pay, is_pay, is_pay_first, tlgrm_id from users where is_pay = true"
 	rows, datab, _ := db.Select(d.query)
 	d.dateNow = time.Now()
