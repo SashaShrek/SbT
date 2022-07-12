@@ -41,6 +41,9 @@ var (
 			tgbotapi.NewKeyboardButton("КАК ОПЛАТИТЬ?"),
 			tgbotapi.NewKeyboardButton("АВТОПЛАТЕЖИ"),
 		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("Мой Telegram ID"),
+		),
 	)
 )
 
@@ -113,7 +116,7 @@ func main() {
 	}
 	logger.SetLog("-1", "info", "connectionBot", "OK")
 	bot = botTime
-	go getCountUsers()
+	//go getCountUsers()
 	//go newVersion()
 	go approveInvite()
 	go timer()
@@ -316,8 +319,8 @@ func update() {
 					logger.SetLog(fmt.Sprint(update.Message.Chat.ID), "info", "start", "Пользователь добавлен в БД")
 				} else {
 					logger.SetLog(fmt.Sprint(update.Message.Chat.ID), "info", "start", "Пользователь уже существует в БД")
-					message = tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Вопросы по работе бота: supp.sbt@gmail.com\n\nВаш Telegram ID: %s, его необходимо указывать при каждом обращении на указанную почту.", fmt.Sprint(update.Message.Chat.ID)))
-					bot.Send(message)
+					//message = tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Вопросы по работе бота: supp.sbt@gmail.com\n\nВаш Telegram ID: %s, его необходимо указывать при каждом обращении на указанную почту.", fmt.Sprint(update.Message.Chat.ID)))
+					//bot.Send(message)
 				}
 				rows.Close()
 				datab.Close()
@@ -362,6 +365,9 @@ func update() {
 				msgId, _ := bot.Send(message)
 				_ = db.InsertOrUpdate(fmt.Sprintf("update users set autopay_msg_id = %d where tlgrm_id = '%s'",
 					msgId.MessageID, fmt.Sprint(update.Message.Chat.ID)))
+			case pay.Keyboard[2][0].Text:
+				message := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Ваш Telegram ID: %d", update.Message.Chat.ID))
+				bot.Send(message)
 			default:
 				message := tgbotapi.NewMessage(update.Message.Chat.ID, "Нет такой команды!")
 				message.ReplyMarkup = pay

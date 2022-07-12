@@ -42,7 +42,7 @@ func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, i
 	if !isPay.is_pay && !isPay.is_pay_first {
 		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/createChatInviteLink?chat_id=%d&creates_join_request=true", *token, *idChannel))
 		if err != nil {
-			msg = fmt.Sprintf("Произошла ошибка: %s. Обратитесь в тех. поддержку по адресу supp.sbt@gmail.com", err.Error())
+			msg = fmt.Sprintf("Произошла ошибка: %s", err.Error())
 			logger.SetLog(stg_id, "error", "createLink", err.Error())
 			rows.Close()
 			datab.Close()
@@ -53,8 +53,8 @@ func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, i
 		_ = json.Unmarshal(data, &dataRes)
 		invite = dataRes["result"].(map[string]interface{})["invite_link"].(string)
 		res.Body.Close()
-		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s\n\nВопросы по работе бота: supp.sbt@gmail.com\n\nВаш Telegram ID: %s, его необходимо указывать при каждом обращении на указанную почту.",
-			invite, stg_id)
+		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s",
+			invite)
 	} else if !isPay.is_pay {
 		rows, datab, _ = db.Select(fmt.Sprintf("select link from users where tlgrm_id = '%s'",
 			stg_id))
@@ -70,9 +70,9 @@ func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, i
 		}
 		rows.Close()
 		datab.Close()
-		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s\n\nВопросы по работе бота: supp.sbt@gmail.com", linkU.link)
+		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s", linkU.link)
 	} else if isPay.is_pay {
-		msg = "Подписка продлена!\n\nВопросы по работе бота: supp.sbt@gmail.com"
+		msg = "Подписка продлена!"
 	}
 
 	var datesP DatesPay
