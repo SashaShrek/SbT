@@ -27,12 +27,24 @@ func PaymentCancel(ownerCancel string, reason string, id int64) (string, string,
 	sid := fmt.Sprint(id)
 	file, err := os.Open("payment_cancel.xml")
 	if err != nil {
+		log := map[string]string{
+			"User": sid,
+			"Func": "PaymentCancel",
+		}
+		logger.Take("error", log, err.Error())
 		logger.SetLog(sid, "error", "paymentCancel", err.Error())
 		return "", "", err
 	}
 	defer file.Close()
 	var typePC TypePC
-	_ = xml.NewDecoder(file).Decode(&typePC)
+	err = xml.NewDecoder(file).Decode(&typePC)
+	if err != nil {
+		log := map[string]string{
+			"User": sid,
+			"Func": "PaymentCancel",
+		}
+		logger.Take("error", log, err.Error())
+	}
 	var resReason, resOwner string = "0", "0"
 	for _, item := range typePC.Rsn {
 		if reason == item.Name {

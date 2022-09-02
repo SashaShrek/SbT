@@ -2,6 +2,7 @@ package apay
 
 import (
 	"fmt"
+	"sbt/logger"
 
 	"github.com/SashaShrek/db"
 )
@@ -21,7 +22,14 @@ func GetAutoPay(id int) (bool, int) {
 
 	d.requestData = fmt.Sprintf("select autopay, autopay_msg_id from users where tlgrm_id = '%s'",
 		fmt.Sprint(id))
-	rows, datab, _ := db.Select(d.requestData)
+	rows, datab, err := db.Select(d.requestData)
+	if err != nil {
+		log := map[string]string{
+			"User": "-1",
+			"Func": "GetAutoPay",
+		}
+		logger.Take("error", log, err.Error())
+	}
 	for rows.Next() {
 		err := rows.Scan(&d.dtPay.Autopay, &d.dtPay.MsgId)
 		if err != nil {

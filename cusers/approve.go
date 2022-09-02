@@ -40,12 +40,24 @@ func Appr(bot *tgbotapi.BotAPI, token *string, idChannel *int64) {
 			app.id, _ = strconv.ParseInt(app.aInv.tlgrm_id, 10, 64)
 			app.res, app.err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/approveChatJoinRequest?chat_id=%d&user_id=%d", *token, *idChannel, app.id))
 			if app.err != nil {
+				log := map[string]string{
+					"User": app.aInv.tlgrm_id,
+					"Func": "Appr",
+				}
+				logger.Take("error", log, app.err.Error())
 				logger.SetLog(app.aInv.tlgrm_id, "error", "approve", app.err.Error())
 				continue
 			}
 			var dataRes map[string]interface{}
 			app.data, _ = ioutil.ReadAll(app.res.Body)
-			_ = json.Unmarshal(app.data, &dataRes)
+			app.err = json.Unmarshal(app.data, &dataRes)
+			if app.err != nil {
+				log := map[string]string{
+					"User": app.aInv.tlgrm_id,
+					"Func": "Appr",
+				}
+				logger.Take("error", log, app.err.Error())
+			}
 
 			app.result = dataRes["ok"].(bool)
 			if dataRes["description"] != nil {
@@ -55,10 +67,20 @@ func Appr(bot *tgbotapi.BotAPI, token *string, idChannel *int64) {
 				if app.desc == "Bad Request: USER_ALREADY_PARTICIPANT" {
 					app.err = db.InsertOrUpdate(fmt.Sprintf("update users set invite = false where tlgrm_id = '%s'", app.aInv.tlgrm_id))
 					if app.err != nil {
+						log := map[string]string{
+							"User": app.aInv.tlgrm_id,
+							"Func": "Appr",
+						}
+						logger.Take("error", log, app.err.Error())
 						logger.SetLog(app.aInv.tlgrm_id, "error", "approve", app.err.Error())
 						app.res.Body.Close()
 					}
 				} else {
+					log := map[string]string{
+						"User": app.aInv.tlgrm_id,
+						"Func": "Appr",
+					}
+					logger.Take("warn", log, app.desc)
 					logger.SetLog(app.aInv.tlgrm_id, "warn", "approve", app.desc)
 				}
 				/*message := tgbotapi.NewMessage(id, "Возникла ошибка при одобрении вашей заявки. Вероятно, у вас ссылка старого типа. Напишите на почту supp.sbt@gmail.com с просьбой обновить ссылку.")
@@ -72,6 +94,11 @@ func Appr(bot *tgbotapi.BotAPI, token *string, idChannel *int64) {
 			}
 			app.err = db.InsertOrUpdate(fmt.Sprintf("update users set invite = false where tlgrm_id = '%s'", app.aInv.tlgrm_id))
 			if app.err != nil {
+				log := map[string]string{
+					"User": app.aInv.tlgrm_id,
+					"Func": "Appr",
+				}
+				logger.Take("error", log, app.err.Error())
 				logger.SetLog(app.aInv.tlgrm_id, "error", "approve", app.err.Error())
 				app.res.Body.Close()
 				continue

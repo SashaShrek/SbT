@@ -69,7 +69,11 @@ type (
 func readSecretData() {
 	file, err := os.Open("data.xml")
 	if err != nil {
-		fmt.Println(err)
+		log := map[string]string{
+			"User": "-1",
+			"Func": "readSecretData",
+		}
+		logger.Take("error", log, err.Error())
 		return
 	}
 	defer file.Close()
@@ -93,7 +97,15 @@ func readSecretData() {
 		Datab      Database `xml:"database"`
 	}
 	var data Datas
-	_ = xml.NewDecoder(file).Decode(&data)
+	err = xml.NewDecoder(file).Decode(&data)
+	if err != nil {
+		log := map[string]string{
+			"User": "-1",
+			"Func": "readSecretData",
+		}
+		logger.Take("error", log, err.Error())
+		return
+	}
 	ID_CHANNEL = &data.Id_channel
 	ID_CHAT = &data.Id_chat
 	PRICE = &data.Price
@@ -102,6 +114,11 @@ func readSecretData() {
 	TOKEN = &data.Token
 	PAY_TOKEN = &data.PayToken
 	db.FillData(&data.Datab.Host, &data.Datab.Port, &data.Datab.User, &data.Datab.Password, &data.Datab.DBname)
+	log := map[string]string{
+		"User": "-1",
+		"Func": "readSecretData",
+	}
+	logger.Take("info", log, "Data readed")
 }
 
 func main() {
@@ -109,12 +126,27 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("GET request")
 		fmt.Fprintf(w, "Not found")
+		log := map[string]string{
+			"User": "-1",
+			"Func": "main",
+		}
+		logger.Take("warn", log, "Get request")
 	})
 	botTime, err := createBotConnection(*TOKEN)
 	if err != nil {
 		logger.SetLog("-1", "error", "connectionBot", err.Error())
+		log := map[string]string{
+			"User": "-1",
+			"Func": "main",
+		}
+		logger.Take("error", log, err.Error())
 	}
 	logger.SetLog("-1", "info", "connectionBot", "OK")
+	log := map[string]string{
+		"User": "-1",
+		"Func": "main",
+	}
+	logger.Take("info", log, "Server to bot is connected")
 	bot = botTime
 	//go getCountUsers()
 	//go newVersion()
@@ -180,42 +212,93 @@ func getResponse(res http.ResponseWriter, req *http.Request) {
 	logger.SetLog("-1", "info", "serverListen", "OK")
 	if req.Method != "POST" {
 		fmt.Fprintf(res, "Not found")
+		log := map[string]string{
+			"User": "-1",
+			"Func": "getResponse",
+		}
+		logger.Take("warn", log, "Not POST")
 	}
 
 	var resp ResponsePay
 	err := json.NewDecoder(req.Body).Decode(&resp)
 	if err != nil {
-		fmt.Println(err)
+		log := map[string]string{
+			"User": "-1",
+			"Func": "getResponse",
+		}
+		logger.Take("error", log, err.Error())
 	}
 
 	var data Data
-	rows, datab, _ := db.Select(fmt.Sprintf("select tlgrm_id, message_pay_id, payment_id from users where id_last_transaction = '%s'", resp.Object.Id))
+	rows, datab, err := db.Select(fmt.Sprintf("select tlgrm_id, message_pay_id, payment_id from users where id_last_transaction = '%s'", resp.Object.Id))
+	if err != nil {
+		log := map[string]string{
+			"User": "-1",
+			"Func": "getResponse",
+		}
+		logger.Take("error", log, err.Error())
+		return
+	}
 	for rows.Next() {
 		err := rows.Scan(&data.tlgrm_id, &data.MsgId, &data.PayId)
 		if err != nil {
 			continue
 		}
 	}
-	tlgrm_id, _ := strconv.ParseInt(data.tlgrm_id, 10, 64)
+	tlgrm_id, err := strconv.ParseInt(data.tlgrm_id, 10, 64)
+	if err != nil {
+		log := map[string]string{
+			"User": fmt.Sprint(tlgrm_id),
+			"Func": "getResponse",
+		}
+		logger.Take("error", log, err.Error())
+	}
 	rows.Close()
 	datab.Close()
 	switch resp.Event {
 	case "payment.succeeded":
 		bot.Send(tgbotapi.NewMessage(tlgrm_id,
 			payment.PaymentDone(tlgrm_id, resp.Object.Id, data.MsgId, TOKEN, ID_CHANNEL, ID_CHAT)))
+		log := map[string]string{
+			"User": fmt.Sprint(tlgrm_id),
+			"Func": "getResponse",
+		}
+		logger.Take("info", log, "payment.succeeded")
 	case "payment.canceled":
+		log := map[string]string{
+			"User": fmt.Sprint(tlgrm_id),
+			"Func": "getResponse",
+		}
+		logger.Take("info", log, "payment.canceled")
 		resp := request.GetPaymentObj(*PRICE, *BACK_LINK, *SHOPID, *PAY_TOKEN, data.PayId)
 		respUser, ownerUser, err := payment.PaymentCancel(resp.Cancel.Party, resp.Cancel.Reason, tlgrm_id)
 		if err != nil {
 			bot.Send(tgbotapi.NewMessage(tlgrm_id, "Не удалось открыть файл конфигурации. Обратитесь к разработчику.\n\nВаш платеж был отменен!"))
+			log := map[string]string{
+				"User": fmt.Sprint(tlgrm_id),
+				"Func": "getResponse",
+			}
+			logger.Take("error", log, err.Error())
 		}
+		log = map[string]string{
+			"User": fmt.Sprint(tlgrm_id),
+			"Func": "getResponse",
+		}
+		logger.Take("info", log, respUser)
 		logger.SetLog(fmt.Sprint(tlgrm_id), "info", "payment", respUser)
 		bot.Send(tgbotapi.NewMessage(tlgrm_id,
 			fmt.Sprintf("Платёж был отменён %s! %s\nДля повторной оплаты нажмите кнопку оплатить внизу экрана.", ownerUser, respUser)))
 	}
 	bot.Send(tgbotapi.NewDeleteMessage(tlgrm_id, data.MsgId))
-	_ = db.InsertOrUpdate(fmt.Sprintf("update users set message_pay_id = 0, link_pay = null, id_last_transaction = null, payment_id = null where id_last_transaction = '%s'",
+	err = db.InsertOrUpdate(fmt.Sprintf("update users set message_pay_id = 0, link_pay = null, id_last_transaction = null, payment_id = null where id_last_transaction = '%s'",
 		resp.Object.Id))
+	if err != nil {
+		log := map[string]string{
+			"User": fmt.Sprint(tlgrm_id),
+			"Func": "getResponse",
+		}
+		logger.Take("error", log, err.Error())
+	}
 }
 
 func createBotConnection(token string) (*tgbotapi.BotAPI, error) {
@@ -232,6 +315,11 @@ func update() {
 	ucfg.Timeout = 60
 	updates, err := bot.GetUpdatesChan(ucfg)
 	if err != nil {
+		log := map[string]string{
+			"User": "-1",
+			"Func": "update",
+		}
+		logger.Take("error", log, err.Error())
 		logger.SetLog("-1", "error", "update", err.Error())
 		return
 	}
@@ -248,30 +336,64 @@ func update() {
 					message = tgbotapi.NewCallback(update.CallbackQuery.ID, "Автоплатёж уже подключен")
 				} else {
 					result = true
-					_ = db.InsertOrUpdate(fmt.Sprintf("update users set autopay = %t where tlgrm_id = '%s'",
+					err = db.InsertOrUpdate(fmt.Sprintf("update users set autopay = %t where tlgrm_id = '%s'",
 						result, fmt.Sprint(update.CallbackQuery.From.ID)))
+					if err != nil {
+						log := map[string]string{
+							"User": fmt.Sprint(update.CallbackQuery.From.ID),
+							"Func": "update",
+						}
+						logger.Take("error", log, err.Error())
+						return
+					}
 					message = tgbotapi.NewCallback(update.CallbackQuery.ID, "Автоплатёж успешно подключен")
 				}
 				message.ShowAlert = true
 				bot.AnswerCallbackQuery(message)
 				bot.Send(tgbotapi.NewMessage(int64(update.CallbackQuery.From.ID),
 					"Чтобы автоплатёж начал работать, необходимо провести оплату банковской картой!"))
+				log := map[string]string{
+					"User": fmt.Sprint(update.CallbackQuery.From.ID),
+					"Func": "update",
+				}
+				logger.Take("info", log, "Autopay on")
 			case "/отключить":
 				result, msgId = apay.GetAutoPay(update.CallbackQuery.From.ID)
 				if result {
 					result = false
-					_ = db.InsertOrUpdate(fmt.Sprintf("update users set autopay = %t where tlgrm_id = '%s'",
+					err = db.InsertOrUpdate(fmt.Sprintf("update users set autopay = %t where tlgrm_id = '%s'",
 						result, fmt.Sprint(update.CallbackQuery.From.ID)))
+					if err != nil {
+						log := map[string]string{
+							"User": fmt.Sprint(update.CallbackQuery.From.ID),
+							"Func": "update",
+						}
+						logger.Take("error", log, err.Error())
+						return
+					}
 					message = tgbotapi.NewCallback(update.CallbackQuery.ID, "Автоплатёж успешно отключен")
 				} else {
 					message = tgbotapi.NewCallback(update.CallbackQuery.ID, "Автоплатёж уже отключен")
 				}
 				message.ShowAlert = true
 				bot.AnswerCallbackQuery(message)
+				log := map[string]string{
+					"User": fmt.Sprint(update.CallbackQuery.From.ID),
+					"Func": "update",
+				}
+				logger.Take("info", log, "Autopay off")
 			}
 			bot.Send(tgbotapi.NewDeleteMessage(int64(update.CallbackQuery.From.ID), msgId))
-			_ = db.InsertOrUpdate(fmt.Sprintf("update users set autopay_msg_id = 0 where tlgrm_id = '%s'",
+			err = db.InsertOrUpdate(fmt.Sprintf("update users set autopay_msg_id = 0 where tlgrm_id = '%s'",
 				fmt.Sprint(update.CallbackQuery.From.ID)))
+			if err != nil {
+				log := map[string]string{
+					"User": fmt.Sprint(update.CallbackQuery.From.ID),
+					"Func": "update",
+				}
+				logger.Take("error", log, err.Error())
+				return
+			}
 		}
 		if update.Message == nil {
 			continue
@@ -314,11 +436,25 @@ func update() {
 						") values ('%s', '%s')", random.GetRandom(10), fmt.Sprint(update.Message.Chat.ID))
 					err = db.InsertOrUpdate(query)
 					if err != nil {
-						fmt.Println(err)
+						log := map[string]string{
+							"User": fmt.Sprint(update.Message.Chat.ID),
+							"Func": "update",
+						}
+						logger.Take("error", log, err.Error())
 					}
 					logger.SetLog(fmt.Sprint(update.Message.Chat.ID), "info", "start", "Пользователь добавлен в БД")
+					log := map[string]string{
+						"User": fmt.Sprint(update.Message.Chat.ID),
+						"Func": "update",
+					}
+					logger.Take("info", log, "Added user")
 				} else {
 					logger.SetLog(fmt.Sprint(update.Message.Chat.ID), "info", "start", "Пользователь уже существует в БД")
+					log := map[string]string{
+						"User": fmt.Sprint(update.Message.Chat.ID),
+						"Func": "update",
+					}
+					logger.Take("info", log, "User already exists")
 					//message = tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Вопросы по работе бота: supp.sbt@gmail.com\n\nВаш Telegram ID: %s, его необходимо указывать при каждом обращении на указанную почту.", fmt.Sprint(update.Message.Chat.ID)))
 					//bot.Send(message)
 				}
@@ -336,6 +472,11 @@ func update() {
 				)
 				messageSended, err := bot.Send(message)
 				if err != nil {
+					log := map[string]string{
+						"User": fmt.Sprint(update.Message.Chat.ID),
+						"Func": "update",
+					}
+					logger.Take("error", log, err.Error())
 					logger.SetLog(fmt.Sprint(update.Message.Chat.ID), "error", "getIdMsg", err.Error())
 					bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, err.Error()))
 					continue
@@ -343,7 +484,14 @@ func update() {
 				msgId := messageSended.MessageID
 				var query string = fmt.Sprintf("update users set message_pay_id = %d, link_pay = '%s', id_last_transaction = '%s', payment_id = '%s' where tlgrm_id = '%s'",
 					msgId, res.ConfirmationsNew.ConfUrl, res.Id, rand, fmt.Sprint(update.Message.Chat.ID))
-				_ = db.InsertOrUpdate(query)
+				err = db.InsertOrUpdate(query)
+				if err != nil {
+					log := map[string]string{
+						"User": fmt.Sprint(update.Message.Chat.ID),
+						"Func": "update",
+					}
+					logger.Take("error", log, err.Error())
+				}
 			case pay.Keyboard[1][0].Text:
 				howPayment := "Чтобы оплатить подписку, необходимо выполнить несколько простых шагов:\n" +
 					"1. Нажать кнопку «ДОСТУП НА 1 МЕСЯЦ - 999₽»\n" +
@@ -352,6 +500,11 @@ func update() {
 					"4. После успешной оплаты бот пришлет вам ссылку-приглашение на канал\n" +
 					"5. Чтобы вернуться обратно в чат к боту, вы можете нажать кнопку «Вернуться в магазин», потом нажать на зелёную кнопку в центре экрана («SEND MESSAGE») или просто закрыть данное окно.\n"
 				bot.Send(tgbotapi.NewMessage(update.Message.Chat.ID, howPayment))
+				log := map[string]string{
+					"User": fmt.Sprint(update.Message.Chat.ID),
+					"Func": "update",
+				}
+				logger.Take("info", log, "Instruction get")
 			case pay.Keyboard[1][1].Text:
 				text := "[ ТЕСТ - СЕЙЧАС АВТОПЛАТЕЖИ РАБОТАТЬ НЕ БУДУТ ]\nВы действительно хотите включить автоплатёж? Если хотите подключить - нажмите галочку (✓), если отключить - крестик (✗).\n" +
 					"Автоплатёж можно подключить только к банковской карте!"
@@ -363,8 +516,15 @@ func update() {
 					),
 				)
 				msgId, _ := bot.Send(message)
-				_ = db.InsertOrUpdate(fmt.Sprintf("update users set autopay_msg_id = %d where tlgrm_id = '%s'",
+				err = db.InsertOrUpdate(fmt.Sprintf("update users set autopay_msg_id = %d where tlgrm_id = '%s'",
 					msgId.MessageID, fmt.Sprint(update.Message.Chat.ID)))
+				if err != nil {
+					log := map[string]string{
+						"User": fmt.Sprint(update.Message.Chat.ID),
+						"Func": "update",
+					}
+					logger.Take("error", log, err.Error())
+				}
 			case pay.Keyboard[2][0].Text:
 				message := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Ваш Telegram ID: %d", update.Message.Chat.ID))
 				bot.Send(message)

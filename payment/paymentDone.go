@@ -26,8 +26,15 @@ type (
 
 func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, idChannel *int64, idChat *int64) string {
 	stg_id := fmt.Sprint(tlgrm_id)
-	rows, datab, _ := db.Select(fmt.Sprintf("select is_pay, is_pay_first from users where tlgrm_id = '%s'",
+	rows, datab, err := db.Select(fmt.Sprintf("select is_pay, is_pay_first from users where tlgrm_id = '%s'",
 		stg_id))
+	if err != nil {
+		log := map[string]string{
+			"User": stg_id,
+			"Func": "PaymentDone",
+		}
+		logger.Take("error", log, err.Error())
+	}
 	var isPay IsPay
 	for rows.Next() {
 		err := rows.Scan(&isPay.is_pay, &isPay.is_pay_first)
@@ -42,6 +49,11 @@ func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, i
 	if !isPay.is_pay && !isPay.is_pay_first {
 		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/createChatInviteLink?chat_id=%d&creates_join_request=true", *token, *idChannel))
 		if err != nil {
+			log := map[string]string{
+				"User": stg_id,
+				"Func": "PaymentDone",
+			}
+			logger.Take("error", log, err.Error())
 			msg = fmt.Sprintf("Произошла ошибка: %s", err.Error())
 			logger.SetLog(stg_id, "error", "createLink", err.Error())
 			rows.Close()
@@ -71,16 +83,28 @@ func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, i
 		rows.Close()
 		datab.Close()
 		msg = fmt.Sprintf("Подписка оплачена!\nПерейдите по ссылке и подайте заявку на вступление, чтобы получить доступ к каналу. Доступ будет предоставлен в течении 15 минут, если заявка была подана вами, а не 3-им лицом: %s", linkU.link)
+		log := map[string]string{
+			"User": stg_id,
+			"Func": "PaymentDone",
+		}
+		logger.Take("info", log, "Payment OK")
 	} else if isPay.is_pay {
 		msg = "Подписка продлена!"
 	}
 
 	var datesP DatesPay
-	rows, datab, _ = db.Select(fmt.Sprintf("select date_pay, next_date_pay, notifier_date_pay from users where tlgrm_id = '%s'", stg_id))
+	rows, datab, err = db.Select(fmt.Sprintf("select date_pay, next_date_pay, notifier_date_pay from users where tlgrm_id = '%s'", stg_id))
+	if err != nil {
+		log := map[string]string{
+			"User": stg_id,
+			"Func": "PaymentDone",
+		}
+		logger.Take("error", log, err.Error())
+	}
 	for rows.Next() {
 		err := rows.Scan(&datesP.date_p, &datesP.n_date_p, &datesP.not_date_p)
 		if err != nil {
-			fmt.Println(err.Error())
+			//logger.SetLog(stg_id, "error", "payment", err.Error())
 			continue
 		}
 	}
@@ -112,11 +136,21 @@ func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, i
 			date_pay, next_date_pay, notifier_date_pay, stg_id)
 		res, err := http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%d", *token, *idChannel, tlgrm_id))
 		if err != nil {
+			log := map[string]string{
+				"User": stg_id,
+				"Func": "PaymentDone",
+			}
+			logger.Take("error", log, err.Error())
 			logger.SetLog(stg_id, "error", "unbanUser", err.Error())
 		}
 		res.Body.Close()
 		res, err = http.Get(fmt.Sprintf("https://api.telegram.org/bot%s/unbanChatMember?chat_id=%d&user_id=%d", *token, *idChat, tlgrm_id))
 		if err != nil {
+			log := map[string]string{
+				"User": stg_id,
+				"Func": "PaymentDone",
+			}
+			logger.Take("error", log, err.Error())
 			logger.SetLog(stg_id, "error", "unbanUser", err.Error())
 		}
 		res.Body.Close()
@@ -127,14 +161,26 @@ func PaymentDone(tlgrm_id int64, transaction string, msgId int, token *string, i
 			"notifier_date_pay = to_date('%s', 'YYYY-MM-DD') where tlgrm_id = '%s'",
 			date_pay, next_date_pay, notifier_date_pay, stg_id)
 	}
-	err := db.InsertOrUpdate(query)
+	err = db.InsertOrUpdate(query)
 	if err != nil {
+		log := map[string]string{
+			"User": stg_id,
+			"Func": "PaymentDone",
+		}
+		logger.Take("error", log, err.Error())
 		logger.SetLog(stg_id, "error", "payment", err.Error())
 	}
 
 	query = fmt.Sprintf("insert into transaction (row_id, provider_token_payment) values ((select row_id from users where tlgrm_id = '%s'), '%s')",
 		stg_id, transaction)
-	_ = db.InsertOrUpdate(query)
+	err = db.InsertOrUpdate(query)
+	if err != nil {
+		log := map[string]string{
+			"User": stg_id,
+			"Func": "PaymentDone",
+		}
+		logger.Take("error", log, err.Error())
+	}
 	logger.SetLog(stg_id, "info", "payment", "Оплата прошла успешно")
 	return msg
 }
