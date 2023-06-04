@@ -35,7 +35,7 @@ var (
 	bot *tgbotapi.BotAPI
 	pay = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("ДОСТУП НА 1 МЕСЯЦ - 999₽"),
+			tgbotapi.NewKeyboardButton("ДОСТУП НА 1 МЕСЯЦ - 1399₽"),
 		),
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton("КАК ОПЛАТИТЬ?"),
@@ -178,7 +178,7 @@ func approveInvite() {
 }
 
 func newVersion() {
-	text := "Оптимизирован код. Чтобы узнавать о технических работах (периоде их проведения), новшествах и исправлениях, можете стать участником специализированного для этих целей канала: https://t.me/+3MvQOOiNcZFiZmZi"
+	text := "Изменена стоимость подписки. Чтобы узнавать о технических работах (периоде их проведения), новшествах и исправлениях, можете стать участником специализированного для этих целей канала: https://t.me/+3MvQOOiNcZFiZmZi"
 	rows, dbase, _ := db.Select("select tlgrm_id from users where is_pay = true")
 	defer rows.Close()
 	defer dbase.Close()
@@ -246,6 +246,7 @@ func getResponse(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 	tlgrm_id, err := strconv.ParseInt(data.tlgrm_id, 10, 64)
+	//tlgrm_id, err := strconv.Atoi(data.tlgrm_id)
 	if err != nil {
 		log := map[string]string{
 			"User": fmt.Sprint(tlgrm_id),
