@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"net/http/httputil"
 	"sbt/logger"
 )
 
@@ -43,7 +44,7 @@ type (
 	}
 )
 
-func GetPaymentObj(price string, url string, shopId string, token string, rand string) Response {
+func GetPaymentObj(price string, url string, shopId string, token string, rand string) (Response, []byte) {
 	body := bytes.NewReader(fillData(price, url))
 	req, err := http.NewRequest("POST", "https://api.yookassa.ru/v3/payments", body)
 	if err != nil {
@@ -58,9 +59,16 @@ func GetPaymentObj(price string, url string, shopId string, token string, rand s
 		logger.SetLog("-1", "error", "GetPaymentObj, request", err.Error())
 	}
 	defer res.Body.Close()
+
+	/*08.06.2023 Запись полного ответа эквайринга*/
+	bodyLink, err := httputil.DumpResponse(res, true)
+	if err != nil {
+		logger.SetLog("-1", "error", "GetPaymentObj, request", err.Error())
+	}
+
 	var resp Response
 	json.NewDecoder(res.Body).Decode(&resp)
-	return resp
+	return resp, bodyLink
 }
 
 func fillData(price string, url string) []byte {

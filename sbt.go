@@ -271,7 +271,7 @@ func getResponse(res http.ResponseWriter, req *http.Request) {
 			"Func": "getResponse",
 		}
 		logger.Take("info", log, "payment.canceled")
-		resp := request.GetPaymentObj(*PRICE, *BACK_LINK, *SHOPID, *PAY_TOKEN, data.PayId)
+		resp, _ := request.GetPaymentObj(*PRICE, *BACK_LINK, *SHOPID, *PAY_TOKEN, data.PayId)
 		respUser, ownerUser, err := payment.PaymentCancel(resp.Cancel.Party, resp.Cancel.Reason, tlgrm_id)
 		if err != nil {
 			bot.Send(tgbotapi.NewMessage(tlgrm_id, "Не удалось открыть файл конфигурации. Обратитесь к разработчику.\n\nВаш платеж был отменен!"))
@@ -463,7 +463,7 @@ func update() {
 				datab.Close()
 			case pay.Keyboard[0][0].Text:
 				rand := random.GetRandom(18)
-				res := request.GetPaymentObj(*PRICE, *BACK_LINK, *SHOPID, *PAY_TOKEN, rand)
+				res, bLink := request.GetPaymentObj(*PRICE, *BACK_LINK, *SHOPID, *PAY_TOKEN, rand) //08.06.2023 bLink - Запись полного ответа эквайринга
 				var description string = "Онлайн шоппинг и мои личные рекомендации/секреты, будут доступны каждой из вас 💋"
 				message := tgbotapi.NewMessage(update.Message.Chat.ID, description)
 				message.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
@@ -490,6 +490,18 @@ func update() {
 					log := map[string]string{
 						"User": fmt.Sprint(update.Message.Chat.ID),
 						"Func": "update",
+					}
+					logger.Take("error", log, err.Error())
+				}
+
+				/*08.06.2023 Запись полного ответа эквайринга*/
+				query = fmt.Sprintf("insert into link_payment_obj (row_id, user_id, link_obj) values ('%s', (select row_id from users where tlgrm_id = '%s'), '%s')",
+					random.GetRandom(10), fmt.Sprint(update.Message.Chat.ID), string(bLink))
+				err = db.InsertOrUpdate(query)
+				if err != nil {
+					log := map[string]string{
+						"User": fmt.Sprint(update.Message.Chat.ID),
+						"Func": "insert",
 					}
 					logger.Take("error", log, err.Error())
 				}
