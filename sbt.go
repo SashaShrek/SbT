@@ -405,11 +405,8 @@ func update() {
 			}
 			switch update.Message.Text {
 			case "/start":
-				msg := "♥️Этот канал, создан для того, чтобы делиться с вами всем, что встречается мне на разных" +
-					" площадках с прямыми ссылками на вещи, стоимостью и голосовыми сопровождениями. " +
-					"У вас будет возможность, выбирать для себя только лучшие вещи разного сегмента, покупать бренды" +
-					" и винтаж по цене Масс-маркета, иметь меня всегда рядом, как личного стилиста и подругу, которая" +
-					" плохого не посоветует 😈"
+				msg := "Этот канал, создан для того, чтобы делиться с вами тем, что поможет сделать ваш гардероб стильным и красивым.\n" +
+					"Лично помогать в выборе качественных вещей, разного сегмента и создании образов 🔥"
 				message := tgbotapi.NewMessage(update.Message.Chat.ID, msg)
 				bot.Send(message)
 				msg = fmt.Sprintf("Привет, %s!\nНажав на кнопку внизу экрана,"+
@@ -464,6 +461,17 @@ func update() {
 			case pay.Keyboard[0][0].Text:
 				rand := random.GetRandom(18)
 				res, bLink := request.GetPaymentObj(*PRICE, *BACK_LINK, *SHOPID, *PAY_TOKEN, rand) //08.06.2023 bLink - Запись полного ответа эквайринга
+				/*08.06.2023 Запись полного ответа эквайринга*/
+				var query string = fmt.Sprintf("insert into link_payment_obj (row_id, user_id, link_obj) values ('%s', (select row_id from users where tlgrm_id = '%s'), '%s')",
+					random.GetRandom(10), fmt.Sprint(update.Message.Chat.ID), string(bLink))
+				err = db.InsertOrUpdate(query)
+				if err != nil {
+					log := map[string]string{
+						"User": fmt.Sprint(update.Message.Chat.ID),
+						"Func": "insert",
+					}
+					logger.Take("error", log, err.Error())
+				}
 				var description string = "Онлайн шоппинг и мои личные рекомендации/секреты, будут доступны каждой из вас 💋"
 				message := tgbotapi.NewMessage(update.Message.Chat.ID, description)
 				message.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
@@ -483,7 +491,7 @@ func update() {
 					continue
 				}
 				msgId := messageSended.MessageID
-				var query string = fmt.Sprintf("update users set message_pay_id = %d, link_pay = '%s', id_last_transaction = '%s', payment_id = '%s' where tlgrm_id = '%s'",
+				query = fmt.Sprintf("update users set message_pay_id = %d, link_pay = '%s', id_last_transaction = '%s', payment_id = '%s' where tlgrm_id = '%s'",
 					msgId, res.ConfirmationsNew.ConfUrl, res.Id, rand, fmt.Sprint(update.Message.Chat.ID))
 				err = db.InsertOrUpdate(query)
 				if err != nil {
@@ -494,17 +502,6 @@ func update() {
 					logger.Take("error", log, err.Error())
 				}
 
-				/*08.06.2023 Запись полного ответа эквайринга*/
-				query = fmt.Sprintf("insert into link_payment_obj (row_id, user_id, link_obj) values ('%s', (select row_id from users where tlgrm_id = '%s'), '%s')",
-					random.GetRandom(10), fmt.Sprint(update.Message.Chat.ID), string(bLink))
-				err = db.InsertOrUpdate(query)
-				if err != nil {
-					log := map[string]string{
-						"User": fmt.Sprint(update.Message.Chat.ID),
-						"Func": "insert",
-					}
-					logger.Take("error", log, err.Error())
-				}
 			case pay.Keyboard[1][0].Text:
 				howPayment := "Чтобы оплатить подписку, необходимо выполнить несколько простых шагов:\n" +
 					"1. Нажать кнопку «ДОСТУП НА 1 МЕСЯЦ - 999₽»\n" +
